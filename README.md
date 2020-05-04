@@ -8,4 +8,12 @@ The assumptions for the code are:
 
 2 - The budget, id and popularity columns from kaggle database can be converted to integer and numeric datatypes and the release date column can be converted to datetype. If the values in these columns are not convertable to the desired datatypes, the user will recieve the message "Caution! Datatype not convertable."
 
-3 - The user has entered the right password for the SQL database. If the password is wrong, the user will receive the message "Did you put in the right password?".
+3-1 - The column Box office can be extracted and parsed using the regex(es). If not, the corrupt parsed column will be dropped and the user will benotified. 
+
+3-2 The column Budget can be extracted and parsed using the regex(es). If not, the corrupt parsed column will be dropped and the user will benotified. 
+
+3-3 The column Release date can be extracted and parsed using the regex(es). If not, the corrupt parsed column will be dropped and the user will benotified. 
+
+3-4 The column Running time can be extracted and parsed using the regex(es). If not, the corrupt parsed column will be dropped and the user will benotified. 
+
+4 - The user has entered the right password for the SQL database. If the password is wrong, the user will receive the message "Did you put in the right password?".
