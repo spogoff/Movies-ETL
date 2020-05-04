@@ -94,21 +94,6 @@ def transform_load(wikipedia_data,kaggel_metadata,rating_data):
     wiki_movies_df = wiki_movies_df[[column for column in wiki_movies_df.columns if wiki_movies_df[column].isnull().sum() < len(wiki_movies_df) * 0.9]]
 
 
-    #make a list from the Box office column and drop the null values and change datatype into string
-    box_office = wiki_movies_df["Box office"].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
-
-
-    #create a regular expression for money formats
-    money_form_one = r'\$\s*\d+\.?\d*\s*[bm]illi?on'
-    money_form_two = r'\$\s*\d{1,3}(?:[,\.]\d{3})+'
-
-    #replace the ranges with a dollar sign
-    box_office = box_office.str.replace(r'\$.*[-—–](?![a-z])', '$', regex=True)
-
-    #extract all values in box office column that match either the first or second format
-    box_office.str.extract(f'({money_form_one}|{money_form_two})')
-
-
     #make a function that drops extra strings and converts values into float data type
     def parse_dollars(s):
 
@@ -143,62 +128,101 @@ def transform_load(wikipedia_data,kaggel_metadata,rating_data):
         else:
             return np.nan
 
-    #apply the function to the box office column
-    wiki_movies_df["box office"] = box_office.str.extract(f'({money_form_one}|{money_form_two})', flags = re.IGNORECASE)[0].apply(parse_dollars)
-
-    #remove the old Box office column
-    wiki_movies_df.drop('Box office', axis=1, inplace=True)
-
-
-    #create a budget variable that excludes null values and convert to string
-    budget = wiki_movies_df['Budget'].dropna().map(lambda x: ' '.join(x) if type(x) == list else x)
+    #assumption: the Box office column can be parsed using the function above
+    try:
+        #make a list from the Box office column and drop the null values and change datatype into string
+        box_office = wiki_movies_df["Box office"].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
 
 
-    #remove any values between a dollar sign and a hyphen 
-    budget = budget.str.replace(r'\$.*[-—–](?![a-z])', '$', regex=True)
+        #create a regular expression for money formats
+        money_form_one = r'\$\s*\d+\.?\d*\s*[bm]illi?on'
+        money_form_two = r'\$\s*\d{1,3}(?:[,\.]\d{3})+'
 
-    #remove the citation reference 
-    budget = budget.str.replace(r'\[\d+\]\s*', '')
+        #replace the ranges with a dollar sign
+        box_office = box_office.str.replace(r'\$.*[-—–](?![a-z])', '$', regex=True)
 
-    #apply the function to the budget column
-    wiki_movies_df['budget'] = budget.str.extract(f'({money_form_one}|{money_form_two})', flags=re.IGNORECASE)[0].apply(parse_dollars)
+        #extract all values in box office column that match either the first or second format
+        box_office.str.extract(f'({money_form_one}|{money_form_two})')
 
 
-    #remove the old budget column
-    wiki_movies_df.drop('Budget', axis=1, inplace=True)
+        #apply the function to the box office column
+        wiki_movies_df["box office"] = box_office.str.extract(f'({money_form_one}|{money_form_two})', flags = re.IGNORECASE)[0].apply(parse_dollars)
 
-    # convert all non-null values of Release date to strings
-    release_date = wiki_movies_df['Release date'].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+        #remove the old Box office column
+        wiki_movies_df.drop('Box office', axis=1, inplace=True)
 
-    #create regex for date forms
-    date_form_one = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s[123]\d,\s\d{4}'
-    date_form_two = r'\d{4}.[01]\d.[123]\d'
-    date_form_three = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}'
-    date_form_four = r'\d{4}'
+    except:
+       wiki_movies_df.drop('box office', axis=1, inplace=True) 
+       print("Caution! Unable to finish the operation. Column box office dropped")
 
-    #extract the date matching the date forms above
-    release_date.str.extract(f'({date_form_one}|{date_form_two}|{date_form_three}|{date_form_four})', flags=re.IGNORECASE)
+    #assumption: the Budget column can be parsed useing the function above
+    try:
+        #create a budget variable that excludes null values and convert to string
+        budget = wiki_movies_df['Budget'].dropna().map(lambda x: ' '.join(x) if type(x) == list else x)
 
-    # extract date time 
-    wiki_movies_df['release_date'] = pd.to_datetime(release_date.str.extract(f'({date_form_one}|{date_form_two}|{date_form_three}|{date_form_four})')[0], infer_datetime_format=True)
 
-    #remove the old Release date column
-    wiki_movies_df.drop('Release date', axis=1, inplace=True)
+        #remove any values between a dollar sign and a hyphen 
+        budget = budget.str.replace(r'\$.*[-—–](?![a-z])', '$', regex=True)
 
-    # turn running time to string
-    running_time = wiki_movies_df["Running time"].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+        #remove the citation reference 
+        budget = budget.str.replace(r'\[\d+\]\s*', '')
 
-    #extract running time that follows either of the following formats
-    running_time_extract = running_time.str.extract(r'(\d+)\s*ho?u?r?s?\s*(\d*)|(\d+)\s*m')
+        #apply the function to the budget column
+        wiki_movies_df['budget'] = budget.str.extract(f'({money_form_one}|{money_form_two})', flags=re.IGNORECASE)[0].apply(parse_dollars)
 
-    #change running time values to numeric and fill the Nan values with zero
-    running_time_extract = running_time_extract.apply(lambda col: pd.to_numeric(col, errors='coerce')).fillna(0)
 
-    #change format to minutes
-    wiki_movies_df['running_time'] = running_time_extract.apply(lambda row: row[0]*60 + row[1] if row[2] == 0 else row[2], axis=1)
+        #remove the old budget column
+        wiki_movies_df.drop('Budget', axis=1, inplace=True)
 
-    #remove the old budget column
-    wiki_movies_df.drop("Running time", axis=1, inplace=True)
+    except:
+        wiki_movies_df.drop('budget', axis=1, inplace=True) 
+        print("Caution! Unable to finish the operation. Column budget dropped")
+    
+    #assumption: the Release date column can be parsed useing the function above
+    try:
+        # convert all non-null values of Release date to strings
+        release_date = wiki_movies_df['Release date'].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+
+        #create regex for date forms
+        date_form_one = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s[123]\d,\s\d{4}'
+        date_form_two = r'\d{4}.[01]\d.[123]\d'
+        date_form_three = r'(?:January|February|March|April|May|June|July|August|September|October|November|December)\s\d{4}'
+        date_form_four = r'\d{4}'
+
+        #extract the date matching the date forms above
+        release_date.str.extract(f'({date_form_one}|{date_form_two}|{date_form_three}|{date_form_four})', flags=re.IGNORECASE)
+
+        # extract date time 
+        wiki_movies_df['release_date'] = pd.to_datetime(release_date.str.extract(f'({date_form_one}|{date_form_two}|{date_form_three}|{date_form_four})')[0], infer_datetime_format=True)
+
+        #remove the old Release date column
+        wiki_movies_df.drop('Release date', axis=1, inplace=True)
+    
+    except: 
+        wiki_movies_df.drop('release_date', axis=1, inplace=True) 
+        print("Caution! Unable to finish the operation. Column release_date dropped")
+
+    
+    #assumption: the Running time column can be parsed useing the function above
+    try:
+        # turn running time to string
+        running_time = wiki_movies_df["Running time"].dropna().apply(lambda x: ' '.join(x) if type(x) == list else x)
+
+        #extract running time that follows either of the following formats
+        running_time_extract = running_time.str.extract(r'(\d+)\s*ho?u?r?s?\s*(\d*)|(\d+)\s*m')
+
+        #change running time values to numeric and fill the Nan values with zero
+        running_time_extract = running_time_extract.apply(lambda col: pd.to_numeric(col, errors='coerce')).fillna(0)
+
+        #change format to minutes
+        wiki_movies_df['running_time'] = running_time_extract.apply(lambda row: row[0]*60 + row[1] if row[2] == 0 else row[2], axis=1)
+
+        #remove the old budget column
+        wiki_movies_df.drop("Running time", axis=1, inplace=True)
+
+    except:
+        wiki_movies_df.drop('running_time', axis=1, inplace=True) 
+        print("Caution! Unable to finish the operation. Column running_time dropped")
 
     #droping adult movies
     kaggel_metadata = kaggel_metadata[kaggel_metadata['adult'] == 'False'].drop('adult',axis='columns')
@@ -287,7 +311,7 @@ def transform_load(wikipedia_data,kaggel_metadata,rating_data):
     try:
         movies_df.to_sql(name = 'movies', con = create_engine(db_string), if_exists = 'replace')
 
-    except OperationalError:
+    except:
 
         print("Did you put in the right password?")
 
@@ -306,5 +330,3 @@ def transform_load(wikipedia_data,kaggel_metadata,rating_data):
     print(f'Done. {time.time() - start_time} total seconds elapsed')
 
     print(movies_df.columns.to_list())
-        
-        
